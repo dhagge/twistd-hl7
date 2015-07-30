@@ -1,0 +1,84 @@
+#!/bin/bash
+#
+#  Startup script for a Twisted service.  Should live in /etc/init.d/hl7proxy
+#  Note: RUNDIR should be set to the root src dir of the python code
+#
+#  chkconfig: - 85 15
+#  description: hl7proxy daemon that proxies HL7 message from \
+#               a TCP port to the apache http handler.
+#  processname: hl7proxy
+#  pidfile: /var/run/twistd/twistd.pid
+#
+### BEGIN INIT INFO
+# Provides: hl7proxy
+# Short-Description: start and stop twistd hl7proxy
+# Description: hl7proxy daemon that proxies HL7 message from
+#  a TCP port to the apache http handler.
+### END INIT INFO
+
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+DAEMON=/usr/bin/twistd
+SERVICE_NAME=hl7proxy
+RUNDIR=/var/lib/hl7proxy
+PIDFILE=/var/run/twistd/hl7proxy.pid
+LOGFILE=/var/log/twistd/twistd.log
+DAEMON_OPTS="--pidfile=$PIDFILE --rundir=$RUNDIR --logfile=$LOGFILE"
+
+# Set python path so twistd can find the source files
+export PYTHONPATH=$RUNDIR
+
+if [ ! -x $DAEMON ]; then
+  echo "ERROR: Can't execute $DAEMON."
+  exit 1
+fi
+
+if [ ! -d $RUNDIR ]; then
+  echo "ERROR: Directory doesn't exist: $RUNDIR"
+  exit 1
+fi
+
+if [ ! -x /usr/bin/twistd ]; then
+  echo "$0: Aborting, no /usr/bin/twistd found"
+  exit 1
+fi
+
+#  load init function library
+. /etc/init.d/functions
+
+case "$1" in
+    start)
+        echo -n "Starting hl7proxy: twistd"
+        echo "log file: $LOGFILE"
+        echo "pid file: $PIDFILE"
+        cd $RUNDIR
+        daemon --user=twistd $DAEMON -y $RUNDIR/hl7proxy/main.py $DAEMON_OPTS
+        e=$?
+        if [ $e -eq 1 ]; then
+          echo "already running"
+        fi
+
+        if [ $e -eq 255 ]; then
+          echo "couldn't start :("
+        fi
+
+        echo "done"
+        ;;
+
+    stop)
+        echo -n "Stopping hl7proxy: twistd"
+        kill `cat "${PIDFILE}"`
+        echo "done"
+        ;;
+
+    restart)
+        "${0}" stop
+        "${0}" start
+        ;;
+
+    *)
+        echo "Usage: ${0} {start|stop|restart|}" >&2
+        exit 1
+        ;;
+esac
+
+exit 0
